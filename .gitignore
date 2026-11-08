@@ -1,0 +1,6 @@
+# 本地 QA 产物（截图 / 测试页 / 日志）不参与发布
+qa/
+node_modules/
+.DS_Store
+Thumbs.db
+*.log

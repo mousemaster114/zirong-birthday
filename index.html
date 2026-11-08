@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>生日快乐，黄子荣 · 午夜甜品屋</title>
+<meta name="description" content="一份为黄子荣定制的 3D 生日蛋糕：深夜法式甜品店、黄铜餐盖、烛光与金箔。掀开餐盖，吹灭蜡烛，许个愿。" />
+<meta name="theme-color" content="#04100B" />
+<meta name="color-scheme" content="dark" />
+<meta name="author" content="made with love, for 黄子荣" />
+
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="午夜甜品屋 · 黄子荣的生日蛋糕" />
+<meta property="og:url" content="https://mousemaster114.github.io/zirong-birthday/" />
+<meta property="og:locale" content="zh_CN" />
+<meta property="og:title" content="生日快乐，黄子荣 🎂 午夜甜品屋" />
+<meta property="og:description" content="今晚，只为你留一盏灯。掀开餐盖，吹灭蜡烛，许个愿。" />
+<meta property="og:image" content="https://mousemaster114.github.io/zirong-birthday/assets/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="生日快乐，黄子荣 🎂 午夜甜品屋" />
+<meta name="twitter:description" content="今晚，只为你留一盏灯。掀开餐盖，吹灭蜡烛，许个愿。" />
+<meta name="twitter:image" content="https://mousemaster114.github.io/zirong-birthday/assets/og.png" />
+<link rel="canonical" href="https://mousemaster114.github.io/zirong-birthday/" />
+
+<link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+<link rel="preload" href="./assets/fonts/zr-serif-sc.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="./assets/fonts/bodoni-500.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="./styles.css" />
+
+<!-- 3D / 特效层的最小布局，其余全部由 styles.css 负责 -->
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #04100B; }
+  #scene-root, #fx { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #scene-root { z-index: 0; touch-action: none; }
+  #fx { z-index: 3; pointer-events: none; }
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/build/three.module.min.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+</head>
+
+<body class="is-intro no-js">
+
+<!-- ============ 3D 舞台 ============ -->
+<div id="scene-root" aria-hidden="true"></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="grain" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+<div class="glow glow--warm" aria-hidden="true"></div>
+<div class="glow glow--cool" aria-hidden="true"></div>
+
+<!-- ============ 顶部栏 ============ -->
+<header class="topbar" id="hud-top">
+  <div class="brand" aria-label="午夜甜品屋">
+    <span class="brand__mark" aria-hidden="true">P<span>/</span>M</span>
+    <span class="brand__text">
+      <span class="brand__fr">La Pâtisserie de Minuit</span>
+      <span class="brand__cn">午夜甜品屋</span>
+    </span>
+  </div>
+  <div class="topbar__right">
+    <p class="topbar__date"><span>Anno</span> <b id="today-date">2026.11.08</b></p>
+    <button class="sound" id="btn-sound" type="button" aria-pressed="false" aria-label="开启音乐">
+      <span class="sound__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <span class="sound__label">音乐</span>
+    </button>
+  </div>
+</header>
+
+<!-- ============ 主标题 ============ -->
+<main class="hero" id="hud-main" aria-live="polite">
+  <p class="hero__eyebrow">
+    <span class="hero__rule" aria-hidden="true"></span>
+    <span>Édition anniversaire · N° 1108</span>
+  </p>
+  <h1 class="hero__title">
+    <span class="hero__small">生日快乐</span>
+    <span class="hero__name" data-text="黄子荣">黄子荣</span>
+  </h1>
+  <p class="hero__sub">
+    <span class="hero__sub-a">愿你新的一岁，<br class="br-mobile" />甜得理直气壮，好运不请自来。</span>
+    <span class="hero__sub-b">愿你所求皆如愿，<br class="br-mobile" />所行化坦途。</span>
+  </p>
+  <p class="hero__fr">Une douceur servie à minuit, pour vous.</p>
+</main>
+
+<!-- ============ 底部操作 ============ -->
+<footer class="dock" id="hud-bottom">
+  <div class="dock__actions">
+    <button class="btn btn--primary" id="btn-blow" type="button" disabled>
+      <span class="btn__index" aria-hidden="true">01</span>
+      <span class="btn__label" id="btn-blow-label">吹灭蜡烛</span>
+      <span class="btn__arrow" aria-hidden="true">→</span>
+    </button>
+    <button class="btn" id="btn-wish" type="button" disabled>
+      <span class="btn__index" aria-hidden="true">02</span>
+      <span class="btn__label">许个愿</span>
+    </button>
+    <button class="btn btn--quiet" id="btn-replay" type="button">
+      <span class="btn__label">再看一次</span>
+    </button>
+  </div>
+  <div class="dock__meta">
+    <p class="hint"><span class="hint__dot" aria-hidden="true"></span>拖拽旋转 · 滚轮缩放 · 空格吹蜡烛</p>
+    <p class="dock__sig">Served with love · 2026</p>
+  </div>
+</footer>
+
+<!-- ============ 入场菜单卡 ============ -->
+<div class="intro" id="intro">
+  <div class="intro__scrim" aria-hidden="true"></div>
+  <div class="intro__card" role="dialog" aria-modal="true" aria-labelledby="intro-title">
+    <span class="intro__corner intro__corner--tl" aria-hidden="true"></span>
+    <span class="intro__corner intro__corner--tr" aria-hidden="true"></span>
+    <span class="intro__corner intro__corner--bl" aria-hidden="true"></span>
+    <span class="intro__corner intro__corner--br" aria-hidden="true"></span>
+
+    <p class="intro__kicker">La Pâtisserie de Minuit <span>·</span> Est. 20:00</p>
+    <p class="intro__no">Commande N° <b>1108</b> <span>/</span> Pour <b>黄子荣</b></p>
+    <div class="intro__rule" aria-hidden="true"><i></i></div>
+
+    <h2 class="intro__title" id="intro-title">今晚，<br /><em>只为你留一盏灯。</em></h2>
+    <p class="intro__sub">打烊后的甜品店，门铃忽然响了。<br />一份生日甜点正在餐盖下等你。</p>
+
+    <button class="seal" id="btn-enter" type="button">
+      <span class="seal__ring" aria-hidden="true"></span>
+      <span class="seal__text">掀开餐盖</span>
+      <span class="seal__en">Click to reveal</span>
+    </button>
+
+    <p class="intro__foot"><span>建议开启声音</span><span aria-hidden="true">·</span><span>Made for 黄子荣</span></p>
+  </div>
+  <p class="intro__aside" aria-hidden="true">No. 1108 &nbsp;·&nbsp; Service de nuit &nbsp;·&nbsp; Sucré</p>
+</div>
+
+<!-- ============ 许愿卡 ============ -->
+<div class="wish" id="wish" hidden>
+  <div class="wish__backdrop" data-wish-close="1"></div>
+  <div class="wish__wrap">
+    <div class="wish__card" role="dialog" aria-modal="true" aria-labelledby="wish-title">
+      <button class="wish__close" id="btn-wish-close" type="button" aria-label="关闭许愿卡">×</button>
+      <p class="wish__kicker">Make a wish · 生日限定</p>
+      <h2 class="wish__title" id="wish-title">许一个愿望</h2>
+      <p class="wish__note">午夜甜品屋今日只供应一份甜，<br />配方是：一点点星光，很多很多好运。</p>
+
+      <ul class="menu">
+        <li class="menu__item">
+          <span class="menu__cn">愿你被世界温柔以待</span>
+          <span class="menu__dots" aria-hidden="true"></span>
+          <span class="menu__en">Gentillesse</span>
+        </li>
+        <li class="menu__item">
+          <span class="menu__cn">愿你所求皆如愿，所行化坦途</span>
+          <span class="menu__dots" aria-hidden="true"></span>
+          <span class="menu__en">Chemins doux</span>
+        </li>
+        <li class="menu__item">
+          <span class="menu__cn">愿你永远保留吹蜡烛时的期待</span>
+          <span class="menu__dots" aria-hidden="true"></span>
+          <span class="menu__en">Émerveillement</span>
+        </li>
+      </ul>
+
+      <p class="wish__sign">— 午夜甜品屋 · 为黄子荣，于今夜</p>
+      <button class="btn btn--primary btn--wide" id="btn-wish-accept" type="button">
+        <span class="btn__label">收下这份甜</span>
+        <span class="btn__arrow" aria-hidden="true">→</span>
+      </button>
+    </div>
+    <p class="wish__aside" aria-hidden="true">Fait avec amour</p>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ============ 兜底：老浏览器 / 模块加载失败时，把祝福送到 ============ -->
+<div id="boot-fallback" hidden>
+  <div class="fallback__inner">
+    <p class="fallback__mark">P/M</p>
+    <p class="fallback__kicker">La Pâtisserie de Minuit</p>
+    <h1 class="fallback__title">生日快乐，黄子荣</h1>
+    <p class="fallback__text">今晚，只为你留一盏灯。<br />愿你新的一岁，甜得理直气壮，好运不请自来。</p>
+    <p class="fallback__tiny">这个 3D 页面需要较新的浏览器（Chrome / Edge 最新版或 Safari 16.4 以上）。<br />换一个浏览器打开，就能看到完整的午夜蛋糕与烛光。</p>
+  </div>
+</div>
+
+<noscript>
+  <div class="fallback__inner">
+    <p class="fallback__mark">P/M</p>
+    <h1 class="fallback__title">生日快乐，黄子荣</h1>
+    <p class="fallback__text">今晚，只为你留一盏灯。<br />开启 JavaScript 后，就能掀开餐盖、点亮蜡烛。</p>
+  </div>
+</noscript>
+
+<script>
+  // 模块加载兜底：12 秒后 3D 场景仍未就绪，展示静态祝福页
+  window.addEventListener('load', function () {
+    window.setTimeout(function () {
+      if (window.__BD_SCENE_READY__ || window.__BD_SCENE_FAILED__) return;
+      var el = document.getElementById('boot-fallback');
+      if (el) el.hidden = false;
+    }, 12000);
+  });
+</script>
+
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>

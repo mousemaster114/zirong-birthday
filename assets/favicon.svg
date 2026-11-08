@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="午夜甜品屋">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7E7BC"/>
+      <stop offset=".55" stop-color="#D8B678"/>
+      <stop offset="1" stop-color="#A97D42"/>
+    </linearGradient>
+    <radialGradient id="bg" cx=".35" cy=".25" r=".85">
+      <stop offset="0" stop-color="#123A2A"/>
+      <stop offset="1" stop-color="#04100B"/>
+    </radialGradient>
+    <radialGradient id="flame" cx=".5" cy=".72" r=".7">
+      <stop offset="0" stop-color="#FFF3D0"/>
+      <stop offset=".55" stop-color="#FFB45C"/>
+      <stop offset="1" stop-color="#D97B36"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <circle cx="32" cy="32" r="25.5" fill="none" stroke="#D8B678" stroke-opacity=".38"/>
+  <circle cx="32" cy="32" r="21.5" fill="none" stroke="#D8B678" stroke-opacity=".16"/>
+  <g>
+    <rect x="17" y="38.5" width="30" height="9.5" rx="2.6" fill="url(#gold)"/>
+    <rect x="21" y="30.5" width="22" height="8.5" rx="2.2" fill="url(#gold)" opacity=".94"/>
+    <rect x="25" y="23.5" width="14" height="7.2" rx="2" fill="url(#gold)" opacity=".88"/>
+    <path d="M17 40.2h30v1.2H17z" fill="#04100B" opacity=".22"/>
+    <path d="M21 32.2h22v1.1H21z" fill="#04100B" opacity=".2"/>
+  </g>
+  <rect x="30.6" y="15.4" width="2.8" height="8.6" rx="1.2" fill="#F6EFE3"/>
+  <path d="M32 7.4c2.3 2.9 3.3 4.5 3.3 6.1a3.3 3.3 0 1 1-6.6 0c0-1.6 1-3.2 3.3-6.1Z" fill="url(#flame)"/>
+  <circle cx="22.4" cy="43.4" r="1.05" fill="#04100B" opacity=".32"/>
+  <circle cx="29.6" cy="34.6" r=".95" fill="#04100B" opacity=".26"/>
+  <circle cx="41.8" cy="43.6" r=".9" fill="#04100B" opacity=".3"/>
+</svg>
