@@ -109,7 +109,7 @@
     </button>
   </div>
   <div class="dock__meta">
-    <p class="hint"><span class="hint__dot" aria-hidden="true"></span>拖拽旋转 · 滚轮缩放 · 空格吹蜡烛</p>
+    <p class="hint"><span class="hint__dot" aria-hidden="true"></span><span class="hint__desk">拖拽旋转 · 滚轮缩放 · 空格吹蜡烛</span><span class="hint__touch">单指旋转 · 双指缩放 · 轻点按钮</span></p>
     <p class="dock__sig">Served with love · 2026</p>
   </div>
 </footer>
@@ -200,6 +200,10 @@
   </div>
 </noscript>
 
+<script>
+  // 尽早移除 no-js：就算 module 加载失败，也先让入场卡立住
+  try { document.body.classList.remove('no-js'); } catch (e) {}
+</script>
 <script>
   // 模块加载兜底：12 秒后 3D 场景仍未就绪，展示静态祝福页
   window.addEventListener('load', function () {

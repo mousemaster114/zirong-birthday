@@ -182,6 +182,11 @@ bus.on('ui:sound-toggle', () => {
 /* ---------------- 降低动态效果 ---------------- */
 bus.on('reduced-motion', applyReducedMotion);
 
+/* ---------------- UI 轻响（在真实动作之后执行，确保 ctx 已解锁） ---------------- */
+bus.on('ui:enter', () => { try { audio.click(); } catch (err) { console.error(err); } });
+bus.on('ui:replay', () => { try { audio.click(); } catch (err) { console.error(err); } });
+bus.on('ui:sound-toggle', () => { try { audio.click(); } catch (err) { console.error(err); } });
+
 /* ---------------- 场景就绪 / 失败 ---------------- */
 bus.on('scene:ready', () => {
   document.body.classList.add('scene-ready');

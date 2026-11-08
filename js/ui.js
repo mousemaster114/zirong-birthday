@@ -33,6 +33,7 @@ export function createUI() {
     todayDate: $('#today-date'),
     hero: $('#hud-main'),
     topbar: $('#hud-top'),
+    dock: $('#hud-bottom'),
   };
 
   let toastTimer = 0;
@@ -77,6 +78,9 @@ export function createUI() {
     if (!dom.wish) return;
     window.clearTimeout(wishHideTimer);
     lastFocus = document.activeElement;
+    setInert(dom.topbar, true);
+    setInert(dom.hero, true);
+    setInert(dom.dock, true);
     dom.wish.hidden = false;
     dom.wish.classList.add('is-open');
     dom.wish.removeAttribute('aria-hidden');
@@ -89,11 +93,14 @@ export function createUI() {
     if (!dom.wish || dom.wish.hidden) return;
     dom.wish.classList.remove('is-open');
     dom.wish.setAttribute('aria-hidden', 'true');
+    setInert(dom.topbar, false);
+    setInert(dom.hero, false);
+    setInert(dom.dock, false);
     window.clearTimeout(wishHideTimer);
     wishHideTimer = window.setTimeout(() => {
       dom.wish.hidden = true;
     }, 620);
-    if (lastFocus && typeof lastFocus.focus === 'function') {
+    if (lastFocus && typeof lastFocus.focus === 'function' && document.contains(lastFocus)) {
       try { lastFocus.focus({ preventScroll: true }); } catch (_) {}
     }
   }
@@ -101,6 +108,9 @@ export function createUI() {
   function closeIntro() {
     if (!dom.intro || dom.intro.hidden) return;
     setInert(dom.intro, true);
+    setInert(dom.topbar, false);
+    setInert(dom.hero, false);
+    setInert(dom.dock, false);
     dom.intro.classList.add('is-closing');
     window.clearTimeout(introHideTimer);
     introHideTimer = window.setTimeout(() => {
@@ -115,6 +125,12 @@ export function createUI() {
     dom.intro.hidden = false;
     dom.intro.classList.remove('is-closing');
     setInert(dom.intro, false);
+    setInert(dom.topbar, true);
+    setInert(dom.hero, true);
+    setInert(dom.dock, true);
+    window.setTimeout(() => {
+      if (state.phase === 'intro') dom.btnEnter?.focus({ preventScroll: true });
+    }, 120);
   }
 
   function syncButtons() {

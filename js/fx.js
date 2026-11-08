@@ -235,6 +235,8 @@ export function createFx(canvas) {
   let rafId = 0;
   let lastNow = 0;
   let time = 0;
+  /** 庆祝开始时刻（内部时间），用于 6s 后整体自然回落 */
+  let celebrationStart = -1;
 
   /** @type {Array<object>} 混合类型粒子池 */
   const particles = [];
@@ -257,6 +259,34 @@ export function createFx(canvas) {
     }
     scale = clamp(Math.min(W, H) / 900, 0.55, 1.6);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  /**
+   * 主场景是「左文字 / 右蛋糕」构图：宽屏特效应从 x≈60% 处发生，
+   * 窄屏或竖屏回到 50%（与 Lead 的构图约定同步）。
+   */
+  function anchorX() {
+    const portrait = H > W;
+    return W > 820 && !portrait ? W * 0.6 : W * 0.5;
+  }
+
+  /** 庆祝开始的整体回落系数：5s 后开始淡出，7.2s 基本消失（不长期遮挡） */
+  function celebrateFade() {
+    if (celebrationStart < 0) return 1;
+    const d = time - celebrationStart;
+    if (d <= 5.0) return 1;
+    return Math.max(0, 1 - smoothstep(5.0, 7.2, d));
+  }
+
+  /**
+   * 烟花爆点的安全区：桌面端避开左上品牌、左下主按钮、右上日期/音乐按钮；
+   * 窄屏/竖屏避开通栏 HUD，落在画面中上部。
+   */
+  function burstRect() {
+    if (W > 820 && W >= H) {
+      return { x0: W * 0.28, x1: W * 0.82, y0: H * 0.08, y1: H * 0.48 };
+    }
+    return { x0: W * 0.12, x1: W * 0.88, y0: H * 0.32, y1: H * 0.52 };
   }
 
   function onResize() {
@@ -332,15 +362,15 @@ export function createFx(canvas) {
       y: cy + Math.sin(a) * d * 0.55,
       vx: Math.cos(a) * rand(12, 52) * scale,
       vy: -rand(2, 26) * scale,
-      r: rand(38, 108) * scale * strength,
-      grow: rand(34, 88) * scale,
+      r: rand(58, 152) * scale * strength,
+      grow: rand(52, 118) * scale,
       aspect: rand(0.55, 1.5),
       rot: rand(-0.5, 0.5),
       rotSpeed: rand(-0.12, 0.12),
-      // 大部分用普通混合做「雾体」，少量用加色做「被灯照亮的边」
-      blend: Math.random() < 0.62 ? 'over' : 'add',
-      alpha: rand(0.028, 0.075),
-      life: rand(2.6, 4.8),
+      // 大部分用加色做「被灯照亮的雾」，少量普通混合补一点体量；避免灰云感
+      blend: Math.random() < 0.86 ? 'add' : 'over',
+      alpha: rand(0.014, 0.036),
+      life: rand(2.8, 5.2),
       age: 0,
     });
   }
@@ -348,10 +378,10 @@ export function createFx(canvas) {
   function revealPuff() {
     if (disposed) return;
     ensureRunning();
-    const cx = W * 0.5;
+    const cx = anchorX();
     const cy = H * 0.36;
-    const spread = Math.min(W, H) * 0.07;
-    const waves = reduced ? [[0, 8, 1]] : [[0, 17, 1], [0.2, 13, 1.45], [0.48, 11, 1.9]];
+    const spread = Math.min(W, H) * 0.085;
+    const waves = reduced ? [[0, 8, 1]] : [[0, 16, 1], [0.2, 13, 1.6], [0.5, 12, 2.2]];
     for (const [delay, n, strength] of waves) {
       after(delay, () => {
         for (let i = 0; i < n; i++) spawnMistBlob(cx, cy, spread * strength, strength);
@@ -375,7 +405,7 @@ export function createFx(canvas) {
       });
     }
     if (!reduced) {
-      spawn({ type: 'flash', x: cx, y: cy, maxR: Math.min(W, H) * 0.2, alpha: 0.1, life: 0.7, age: 0 });
+      spawn({ type: 'flash', x: cx, y: cy, maxR: Math.min(W, H) * 0.22, alpha: 0.07, life: 0.8, age: 0 });
     }
   }
 
@@ -385,8 +415,8 @@ export function createFx(canvas) {
     if (disposed) return;
     ensureRunning();
     const n = reduced ? 3 : 8;
-    const cx = W * 0.5;
-    const cy = H * 0.5;
+    const cx = anchorX();
+    const cy = H * 0.48;
     for (let i = 0; i < n; i++) {
       const baseX = cx + rand(-W * 0.045, W * 0.045);
       spawn({
@@ -399,10 +429,10 @@ export function createFx(canvas) {
         swayAmp: rand(14, 46) * scale,
         swayFreq: rand(0.55, 1.25),
         swayPhase: rand(0, TAU),
-        h: rand(70, 150) * scale,
-        w0: rand(8, 19) * scale,
+        h: rand(88, 172) * scale,
+        w0: rand(7, 17) * scale,
         rot: rand(-0.08, 0.08),
-        alpha: rand(0.032, 0.062) * (reduced ? 0.85 : 1),
+        alpha: rand(0.042, 0.078) * (reduced ? 0.85 : 1),
         life: rand(2.2, 3.6),
         age: 0,
       });
@@ -429,15 +459,15 @@ export function createFx(canvas) {
 
   function makeFoil(opts = {}) {
     const initial = !!opts.initial;
-    const fromBurst = !!opts.fromBurst;
     const p = {
       type: 'foil',
       x: opts.x != null ? opts.x : rand(-W * 0.06, W * 1.06),
-      y: opts.y != null ? opts.y : initial ? rand(-H * 0.3, H * 0.55) : rand(-H * 0.22, -8),
-      vx: opts.vx != null ? opts.vx : rand(-28, 28) * scale,
-      vy: opts.vy != null ? opts.vy : rand(8, 58) * scale,
-      w: rand(3.2, 8.4) * scale,
-      l: rand(7, 17) * scale,
+      // 金箔密度集中在上半屏：从画面上部/顶部外落下
+      y: opts.y != null ? opts.y : initial ? rand(-H * 0.32, H * 0.42) : rand(-H * 0.2, -8),
+      vx: opts.vx != null ? opts.vx : rand(-26, 26) * scale,
+      vy: opts.vy != null ? opts.vy : rand(8, 52) * scale,
+      w: rand(4.8, 12) * scale,
+      l: rand(10, 23) * scale,
       tilt: rand(0, TAU),
       tiltSpeed: rand(1.1, 3.6) * (Math.random() < 0.5 ? -1 : 1),
       roll: rand(0, TAU),
@@ -445,11 +475,10 @@ export function createFx(canvas) {
       sway: rand(8, 28) * scale,
       swayFreq: rand(0.7, 2.1),
       swayPhase: rand(0, TAU),
-      alpha: rand(0.62, 0.98),
+      alpha: rand(0.55, 0.92),
       sprite: pick(sprites.foilSprites),
-      age: initial ? rand(0, 1.6) : 0,
-      life: rand(4.2, 7.0),
-      fromBurst,
+      age: initial ? rand(0, 1.7) : 0,
+      life: rand(4.4, 7.0),
     };
     return p;
   }
@@ -475,33 +504,34 @@ export function createFx(canvas) {
   }
 
   function spawnBurst(cx, cy) {
-    const n = reduced ? 20 : Math.round(rand(48, 72));
-    const baseSpeed = rand(170, 300) * scale * (reduced ? 0.7 : 1);
+    const density = W < 620 ? 0.72 : 1;
+    const n = reduced ? 24 : Math.round(rand(80, 108) * density);
+    const baseSpeed = rand(255, 405) * scale * (reduced ? 0.72 : 1);
     const a0 = rand(0, TAU);
-    const colorA = pick(STREAK_COLORS);
-    const colorB = pick(STREAK_COLORS);
     for (let i = 0; i < n; i++) {
       const a = a0 + (i / n) * TAU + rand(-0.12, 0.12);
-      const sp = baseSpeed * rand(0.5, 1.18);
-      spawnStreak(
-        cx,
-        cy,
-        a,
-        sp,
-        Math.random() < 0.55 ? colorA : colorB,
-        rand(1.15, 2.1),
-        rand(0.7, 1.5) * Math.max(0.8, scale)
-      );
+      const sp = baseSpeed * rand(0.48, 1.18);
+      // 暖金核心（#FFB45C）+ 香槟金尾（#F2DCA8）
+      const color =
+        Math.random() < 0.52 ? C.amber : Math.random() < 0.62 ? C.goldHi : Math.random() < 0.7 ? C.gold : C.cream;
+      spawnStreak(cx, cy, a, sp, color, rand(1.25, 2.25), rand(0.95, 1.85) * Math.max(0.8, scale));
+    }
+    // 内芯：更短更快更暖，让爆心亮起来
+    const coreN = reduced ? 6 : Math.round(32 * density);
+    for (let i = 0; i < coreN; i++) {
+      const a = rand(0, TAU);
+      spawnStreak(cx, cy, a, baseSpeed * rand(0.18, 0.45), C.amber, rand(0.5, 0.95), rand(0.7, 1.2) * scale);
     }
 
     // 星芒
-    const stars = reduced ? 1 : 3 + ((Math.random() * 3) | 0);
+    const stars = reduced ? 2 : 4 + ((Math.random() * 3) | 0);
     for (let i = 0; i < stars; i++) {
       spawn({
         type: 'star',
+        celebrate: true,
         x: cx + rand(-16, 16) * scale,
         y: cy + rand(-16, 16) * scale,
-        size: rand(20, 58) * scale,
+        size: rand(22, 62) * scale,
         rot: rand(0, TAU),
         spin: rand(-0.35, 0.35),
         life: rand(1.1, 2.0),
@@ -511,7 +541,7 @@ export function createFx(canvas) {
 
     // 金箔从爆心飞出
     if (!reduced) {
-      const foils = Math.round(rand(8, 16));
+      const foils = Math.round(rand(9, 17));
       for (let i = 0; i < foils; i++) {
         const a = rand(0, TAU);
         const sp = rand(40, 170) * scale;
@@ -521,21 +551,29 @@ export function createFx(canvas) {
             y: cy,
             vx: Math.cos(a) * sp,
             vy: Math.sin(a) * sp - 30 * scale,
-            fromBurst: true,
           })
         );
+      }
+    } else {
+      // 降低动效时也留几片，让「庆祝发生过」看得出来
+      for (let i = 0; i < 5; i++) {
+        const a = rand(0, TAU);
+        const sp = rand(30, 90) * scale;
+        spawn(makeFoil({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 20 * scale }));
       }
     }
 
     if (!reduced) {
-      spawn({ type: 'flash', x: cx, y: cy, maxR: Math.min(W, H) * 0.11, alpha: 0.34, life: 0.42, age: 0 });
+      spawn({ type: 'flash', celebrate: true, x: cx, y: cy, maxR: Math.min(W, H) * 0.15, alpha: 0.46, life: 0.42, age: 0 });
     }
   }
 
   function spawnRocket() {
-    const x0 = rand(W * 0.14, W * 0.86);
-    const tx = clamp(x0 + rand(-W * 0.16, W * 0.16), W * 0.1, W * 0.9);
-    const ty = rand(H * 0.12, H * 0.46);
+    const rect = burstRect();
+    // 升空轨迹也限制在安全区内，避免细线划过品牌字/按钮
+    const x0 = rand(rect.x0, rect.x1);
+    const tx = clamp(x0 + rand(-W * 0.06, W * 0.06), rect.x0, rect.x1);
+    const ty = rand(rect.y0, rect.y1);
     spawn({
       type: 'rocket',
       x: x0,
@@ -556,28 +594,31 @@ export function createFx(canvas) {
   function celebrate() {
     if (disposed) return;
     ensureRunning();
+    celebrationStart = time;
+    const density = W < 620 ? 0.75 : 1;
 
-    // 金箔雨：先来一阵，再分几波补上
-    spawnFoilWave(reduced ? 24 : 74);
+    // 金箔雨：先来一阵大的，再分几波补上，2–3s 内能看清「金雨」
+    spawnFoilWave(Math.round((reduced ? 34 : 112) * density));
     if (reduced) {
-      after(0.3, () => spawnFoilWave(10));
+      after(0.4, () => spawnFoilWave(14));
     } else {
-      after(0.45, () => spawnFoilWave(26));
-      after(1.0, () => spawnFoilWave(24));
-      after(1.6, () => spawnFoilWave(20));
-      after(2.2, () => spawnFoilWave(16));
+      after(0.4, () => spawnFoilWave(Math.round(34 * density)));
+      after(0.95, () => spawnFoilWave(Math.round(30 * density)));
+      after(1.5, () => spawnFoilWave(Math.round(26 * density)));
+      after(2.05, () => spawnFoilWave(Math.round(22 * density)));
     }
 
-    // 细线烟花：火箭升空后炸开
-    const rocketTimes = reduced ? [0.05, 1.0, 2.0] : [0.02, 0.32, 0.66, 1.02, 1.44, 1.92, 2.45];
+    // 细线烟花：至少 4–6 束错峰升空炸开
+    const rocketTimes = reduced ? [0.05, 1.1, 2.1] : [0.02, 0.3, 0.62, 0.96, 1.34, 1.76, 2.2, 2.7];
     for (const t of rocketTimes) after(t, spawnRocket);
 
     // 全屏零星星芒
-    const glints = reduced ? 3 : 12;
+    const glints = reduced ? 4 : 16;
     for (let i = 0; i < glints; i++) {
       after(rand(0, 2.8), () => {
         spawn({
           type: 'star',
+          celebrate: true,
           x: rand(W * 0.08, W * 0.92),
           y: rand(H * 0.08, H * 0.62),
           size: rand(16, 46) * scale,
@@ -675,20 +716,18 @@ export function createFx(canvas) {
           break;
         }
         case 'mist': {
-          p.age += 0;
           p.x += p.vx * dt;
           p.y += p.vy * dt;
           p.vx *= Math.exp(-0.35 * dt);
           p.r += p.grow * dt;
+          p.rot += p.rotSpeed * dt;
           alive = p.age < p.life;
           break;
         }
         case 'wisp': {
           p.y += p.vy * dt;
-          p.vy *= Math.exp(-0.18 * dt);
+          p.vy *= Math.exp(-0.16 * dt);
           p.swayPhase += p.swayFreq * dt;
-          p.x = p.baseX + Math.sin(p.swayPhase) * p.swayAmp * clamp(p.age / p.life, 0, 1);
-          p.rot = Math.sin(p.swayPhase * 1.3) * 0.1;
           alive = p.age < p.life;
           break;
         }
@@ -704,9 +743,9 @@ export function createFx(canvas) {
           break;
         }
         case 'streak': {
-          p.vx *= Math.exp(-1.9 * dt);
-          p.vy *= Math.exp(-1.9 * dt);
-          p.vy += 52 * scale * dt;
+          p.vx *= Math.exp(-1.55 * dt);
+          p.vy *= Math.exp(-1.55 * dt);
+          p.vy += 48 * scale * dt;
           p.x += p.vx * dt;
           p.y += p.vy * dt;
           alive = p.age < p.life;
@@ -718,7 +757,7 @@ export function createFx(canvas) {
           p.x = p.x0 + (p.tx - p.x0) * e;
           p.y = p.y0 + (p.ty - p.y0) * e;
           p.trail.push({ x: p.x, y: p.y });
-          if (p.trail.length > 12) p.trail.shift();
+          if (p.trail.length > 5) p.trail.shift();
           if (t >= 1) {
             spawnBurst(p.tx, p.ty);
             alive = false;
@@ -764,93 +803,134 @@ export function createFx(canvas) {
   // ---- 绘制 ---------------------------------------------------------------
 
   function drawMist(p) {
-    const t = p.age / p.life;
+    const t = clamp(p.age / p.life, 0, 1);
     const a = envelope(t) * p.alpha;
     if (a <= 0.002) return;
-    const w = p.r * 2.15;
-    const h = p.r * 1.3;
+    const w = p.r * 2.2 * (p.aspect || 1);
+    const h = p.r * 1.32;
     ctx.globalAlpha = a;
-    ctx.drawImage(sprites.mistSprite, p.x - w / 2, p.y - h / 2, w, h);
-  }
-
-  function drawWisp(p) {
-    const t = p.age / p.life;
-    const a = envelope(t) * p.alpha * (1 - smoothstep(0.7, 1, t) * 0.6);
-    if (a <= 0.002) return;
-    const h = p.h * (1 + p.grow * t * 0.5);
-    const w = p.w * (1 + t * 0.9);
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.rotate(p.rot);
-    ctx.globalAlpha = a;
-    ctx.drawImage(sprites.wispSprite, -w / 2, -h * 0.72, w, h);
+    ctx.rotate(p.rot || 0);
+    ctx.drawImage(sprites.mistSprite, -w / 2, -h / 2, w, h);
     ctx.restore();
   }
 
+  /** 烛烟：由一串沿曲线上升的柔雾点连成，越往上越细越淡 */
+  function drawWisp(p) {
+    const t = clamp(p.age / p.life, 0, 1);
+    const a = envelope(t) * p.alpha * (1 - smoothstep(0.65, 1, t) * 0.55);
+    if (a <= 0.002) return;
+    const N = 11;
+    for (let k = 0; k < N; k++) {
+      const f = k / (N - 1); // 0 根部 → 1 顶部
+      const yy = p.y - f * p.h * (1 + t * 0.35);
+      const sway = Math.sin(p.swayPhase + f * 2.7) * p.swayAmp * (0.3 + f * 1.1);
+      const xx = p.baseX + sway;
+      const rr = p.w0 * (0.8 + f * 2.4) * (1 + t * 0.6) * 2.2;
+      let aa = a * (1 - f * 0.62) * (0.6 + 0.4 * Math.sin(f * 5.2 + p.swayPhase * 0.6));
+      if (aa <= 0.002) continue;
+      ctx.globalAlpha = aa;
+      ctx.save();
+      ctx.translate(xx, yy);
+      ctx.rotate(p.rot + Math.sin(p.swayPhase + f * 2.2) * 0.22);
+      ctx.drawImage(sprites.mistSprite, -rr, -rr, rr * 2, rr * 1.25);
+      ctx.restore();
+    }
+  }
+
   function drawFoil(p) {
+    const cf = celebrateFade();
+    if (cf <= 0.02) return;
     const t = p.age / p.life;
     const env = smoothstep(0, 0.1, t) * (1 - smoothstep(0.72, 1, t));
     if (env <= 0.004) return;
-    const c = Math.cos(p.tilt);
-    const ws = Math.max(0.14, Math.abs(c));
-    const bright = 0.52 + 0.48 * Math.abs(c);
-    ctx.globalAlpha = clamp(p.alpha * env * bright, 0, 1);
+    const ac = Math.abs(Math.cos(p.tilt));
+    const ws = Math.max(0.12, ac);
+    const bright = 0.5 + 0.5 * ac;
+    ctx.globalAlpha = clamp(p.alpha * env * (0.42 + 0.58 * bright) * cf, 0, 1);
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.roll);
     ctx.scale(ws, 1);
     ctx.drawImage(p.sprite, -p.w / 2, -p.l / 2, p.w, p.l);
     ctx.restore();
+    // 正面朝光时给一颗小闪光，金箔的「翻转高光」
+    if (ac > 0.86 && env > 0.18) {
+      ctx.globalCompositeOperation = 'lighter';
+      const g = 13 * scale * (0.6 + ac);
+      ctx.globalAlpha = env * 0.3 * cf;
+      ctx.drawImage(sprites.goldGlow, p.x - g / 2, p.y - g / 2, g, g);
+      ctx.globalCompositeOperation = 'source-over';
+    }
   }
 
   function drawStreak(p) {
+    const cf = celebrateFade();
+    if (cf <= 0.02) return;
     const t = clamp(p.age / p.life, 0, 1);
-    const fade = Math.pow(1 - t, 1.5);
+    const fade = Math.pow(1 - t, 1.4) * cf;
     if (fade <= 0.01) return;
     const speed = Math.hypot(p.vx, p.vy);
     ctx.strokeStyle = p.color;
-    const tail = clamp(speed * 0.085, 3, 46);
+    const tail = clamp(speed * 0.12, 6, 64);
     let nx = 0;
     let ny = 0;
     if (speed > 1) {
       nx = p.vx / speed;
       ny = p.vy / speed;
     }
-    ctx.globalAlpha = fade * 0.82;
-    ctx.lineWidth = Math.max(0.5, p.width * (0.35 + 0.65 * fade));
+    ctx.globalAlpha = fade * 0.95;
+    ctx.lineWidth = Math.max(0.55, p.width * (0.35 + 0.65 * fade));
     ctx.beginPath();
     ctx.moveTo(p.x - nx * tail, p.y - ny * tail);
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     if (speed > 1) {
-      ctx.globalAlpha = fade * 0.45;
-      const g = 7 * scale;
+      // 头部用最亮的香槟金再叠一小段，形成「暖金核心 + 亮尾」
+      ctx.strokeStyle = C.goldHi;
+      ctx.globalAlpha = fade * 0.75;
+      ctx.lineWidth = Math.max(0.45, p.width * 0.62);
+      ctx.beginPath();
+      ctx.moveTo(p.x - nx * tail * 0.34, p.y - ny * tail * 0.34);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      ctx.globalAlpha = fade * 0.55;
+      const g = 11 * scale;
       ctx.drawImage(sprites.goldGlow, p.x - g / 2, p.y - g / 2, g, g);
     }
   }
 
   function drawRocket(p) {
+    const cf = celebrateFade();
+    if (cf <= 0.02) return;
     ctx.strokeStyle = p.color;
     ctx.lineWidth = 1.1 * Math.max(0.8, scale);
     const trail = p.trail;
     if (trail.length > 1) {
       for (let i = 1; i < trail.length; i++) {
+        const dx = trail[i].x - trail[i - 1].x;
+        const dy = trail[i].y - trail[i - 1].y;
+        // 低帧率下 dt 变大，单段会拉成长长的「划痕」；超过阈值就不画
+        if (Math.hypot(dx, dy) > 30 * scale) continue;
         const t = i / trail.length;
-        ctx.globalAlpha = 0.5 * t;
+        ctx.globalAlpha = 0.28 * t * cf;
         ctx.beginPath();
         ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
         ctx.lineTo(trail[i].x, trail[i].y);
         ctx.stroke();
       }
     }
-    ctx.globalAlpha = 0.9;
+    ctx.globalAlpha = 0.9 * cf;
     const g = 10 * scale;
     ctx.drawImage(sprites.goldGlow, p.x - g / 2, p.y - g / 2, g, g);
   }
 
   function drawStar(p) {
+    const cf = p.celebrate ? celebrateFade() : 1;
+    if (cf <= 0.02) return;
     const t = clamp(p.age / p.life, 0, 1);
-    const a = envelope(t);
+    const a = envelope(t) * cf;
     if (a <= 0.01) return;
     const s = p.size * (0.7 + 0.35 * Math.sin(Math.PI * t));
     ctx.save();
@@ -871,8 +951,10 @@ export function createFx(canvas) {
   }
 
   function drawFlash(p) {
+    const cf = p.celebrate ? celebrateFade() : 1;
+    if (cf <= 0.02) return;
     const t = clamp(p.age / p.life, 0, 1);
-    const a = Math.pow(1 - t, 2) * p.alpha;
+    const a = Math.pow(1 - t, 2) * p.alpha * cf;
     if (a <= 0.008) return;
     const r = p.maxR * (0.5 + 1.4 * (1 - Math.pow(1 - t, 3)));
     ctx.globalAlpha = a;
@@ -880,8 +962,10 @@ export function createFx(canvas) {
   }
 
   function drawBokeh(p) {
+    const cf = celebrateFade();
+    if (cf <= 0.02) return;
     const t = clamp(p.age / p.life, 0, 1);
-    const a = envelope(t) * p.alpha;
+    const a = envelope(t) * p.alpha * cf;
     if (a <= 0.004) return;
     ctx.globalAlpha = a;
     ctx.drawImage(sprites.mistSprite, p.x - p.r, p.y - p.r * 0.9, p.r * 2, p.r * 1.8);
@@ -900,29 +984,41 @@ export function createFx(canvas) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
 
-    // 1) 底层柔雾 / 散景 / 爆闪（加色）
+    // 1) 加色层：被灯照亮的雾 / 散景 / 爆闪（最底）
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
-      if (p.type === 'mist') drawMist(p);
-      else if (p.type === 'bokeh') drawBokeh(p);
-      else if (p.type === 'flash') drawFlash(p);
+      if (p.type === 'mist') {
+        if (p.blend !== 'over') drawMist(p);
+      } else if (p.type === 'bokeh') {
+        drawBokeh(p);
+      } else if (p.type === 'flash') {
+        drawFlash(p);
+      }
     }
 
-    // 2) 烛烟（加色、低透明度，像一缕被灯照亮的烟）
+    // 2) 普通混合的雾体：柔白、很淡，不要灰云
+    ctx.globalCompositeOperation = 'source-over';
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      if (p.type === 'mist' && p.blend === 'over') drawMist(p);
+    }
+
+    // 3) 烛烟：加色，像被暖灯照亮的烟；再叠金箔
+    ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
       if (p.type === 'wisp') drawWisp(p);
     }
 
-    // 3) 金箔（正片叠底色的实体片，翻转高光来自 sprite）
+    // 4) 金箔（实体片，翻转高光来自 sprite）
     ctx.globalCompositeOperation = 'source-over';
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
       if (p.type === 'foil') drawFoil(p);
     }
 
-    // 4) 金尘 / 烟花 / 星芒 / 愿望尘（加色）
+    // 5) 加色层：金尘 / 烟花 / 星芒 / 愿望尘
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
@@ -1004,6 +1100,7 @@ export function createFx(canvas) {
     particles.length = 0;
     pending.length = 0;
     dustEnabled = false;
+    celebrationStart = -1;
     stopRunning();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
